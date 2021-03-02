@@ -57,7 +57,7 @@
     },
     "bhmass":{
         "kind":"parameter",
-        "value":1.78e7,
+        "value":7e7,
         "class":"parameter",
         "latex":"M_{h} (M_{\\odot})"
     },
