@@ -1,4 +1,4 @@
-"""Definitions for the `Fallback` class."""
+"""Definitions for the `Ecc_Fallback` class."""
 import os
 
 import astropy.constants as c
@@ -8,11 +8,11 @@ from scipy.interpolate import interp1d
 from mosfit.constants import C_CGS, DAY_CGS, FOUR_PI, M_SUN_CGS
 from mosfit.modules.engines.engine import Engine
 
-CLASS_NAME = 'Fallback'
+CLASS_NAME = 'Ecc_Fallback'
 
 
 class Ecc_Fallback(Engine):
-    """A tde engine."""
+    """An eccentric tde engine."""
 
     def __init__(self, **kwargs):
         """Initialize module.
@@ -22,26 +22,10 @@ class Ecc_Fallback(Engine):
         The files in data directory have been converted from dm/dt space
         to dm/de space.
         """
-        super(Fallback, self).__init__(**kwargs)
+        super(Ecc_Fallback, self).__init__(**kwargs)
 
         G = c.G.cgs.value  # 6.67259e-8 cm3 g-1 s-2
         Mhbase = 1.0e6 * M_SUN_CGS  # this is the generic size of bh used
-
-        Mh = kwargs['bhmass']
-        Mstar = kwargs.get(self.key('starmass'))
-        # Assume that BDs below 0.1 solar masses are n=1 polytropes
-        if Mstar < 0.1:
-            Mstar_Tout = 0.1
-        else:
-            Mstar_Tout = Mstar
-
-        Rstar = RS(Mstar_Tout)
-        rT = Rstar * (Mh / Mstar_Tout)**(1 / 3)
-        rTbase = (1.0e6)**(1 / 3)  # Tidal radius in cgs
-        P = kwargs['period'] * DAY_CGS  # Period in cgs
-        A = (G * Mh / 4 / np.pi**2 * P**2)**(1 / 3)
-        Abase = A * rTbase / rT
-        dE = G * Mhbase / 2 / Abase
 
         self.EXTRAPOLATE = True
 
@@ -65,7 +49,7 @@ class Ecc_Fallback(Engine):
 
         for g in self._gammas:
 
-            dmdedir = (os.path.dirname(__file__)[:-15] + 'models/tde/data/' +
+            dmdedir = (os.path.dirname(__file__)[:-15] + 'models/etde/data/' +
                        g + '/')
 
             # --------- GET SIMULATION BETAS -----------------
@@ -85,7 +69,7 @@ class Ecc_Fallback(Engine):
             # energy & dmde (cgs)
             e, d = np.loadtxt(dmdedir + sim_beta_files[0])
             # only convert dm/de --> dm/dt for mass that is bound to BH (e < 0)
-            ebound = e[e < 0] - dE
+            ebound = e[e < 0]
             dmdebound = d[e < 0]
 
             if min(dmdebound) < 0:  # shouldn't happen, just a check
@@ -123,7 +107,7 @@ class Ecc_Fallback(Engine):
 
                 e, d = np.loadtxt(dmdedir + sim_beta_files[i])
                 # only convert dm/de --> dm/dt for mass bound to BH (e < 0)
-                ebound = e[e < 0] - dE
+                ebound = e[e < 0]
                 dmdebound = d[e < 0]
 
                 if min(dmdebound) < 0:  # shouldn't happen, just a check
@@ -436,6 +420,7 @@ class Ecc_Fallback(Engine):
         # bh mass for dmdt's in astrocrash is 1e6 solar masses
         # dmdt ~ Mh^(-1/2)
         self._Mh = kwargs['bhmass']  # in units of solar masses
+        Mh = self._Mh * M_SUN_CGS
 
         # Assume that BDs below 0.1 solar masses are n=1 polytropes
         if self._Mstar < 0.1:
@@ -450,6 +435,24 @@ class Ecc_Fallback(Engine):
         # tpeak ~ Mh^(1/2) * Mstar^(-1)
         time = (time * np.sqrt(self._Mh / Mhbase) * (Mstarbase / self._Mstar) *
                 (Rstar / Rstarbase) ** 1.5)
+
+        # transform dmdt back to dmde profile, and shift it
+
+        G = c.G.cgs.value  # 6.67259e-8 cm3 g-1 s-2
+        dedt = (2.0 / 3.0) * ((np.pi * G * Mh)**2 / 2.0)**(1.0 / 3.0) * \
+            time**(-5 / 3)
+        ebound = -((np.pi * G * Mh)**2 / 2.0 / time**2)**(1.0 / 3.0)
+        dmde = dmdt / dedt
+
+        P = kwargs['period'] * DAY_CGS  # Period in cgs
+        A = (G * Mh / 4 / np.pi**2 * P**2)**(1 / 3)
+        dE = -G * Mh / 2 / A
+        ebound = ebound + dE
+        #print(ebound[0], dE, Mh / M_SUN_CGS, time[np.argmax(dmdt)] / DAY_CGS)
+
+        dedt = (1.0 / 3.0) * (-2.0 * ebound) ** (5.0 / 2.0) / \
+            (2.0 * np.pi * G * self._Mh)
+        time = (-(np.pi * G * self._Mh)**2 / 2.0 / ebound ** 3) ** (1.0 / 2.0)
 
         time = time / DAY_CGS  # time is now in days to match self._times
         tfallback = np.copy(time[0])

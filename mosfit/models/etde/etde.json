@@ -73,7 +73,7 @@
         "class": "parameter",
         "latex": "\\rm photosphere\\ \\rm  exponent\\ 'l' "
     },
-    "fallback":{
+    "ecc_fallback":{
         "kind":"engine",
         "inputs":[
             "densetimes",
@@ -88,7 +88,7 @@
     "viscous":{
         "kind":"transform",
         "inputs":[
-            "fallback",
+            "ecc_fallback",
             "texplosion",
             "Tviscous"
         ]
@@ -97,7 +97,7 @@
         "kind":"photosphere",
         "inputs":[
             "bhmass",
-            "fallback",
+            "ecc_fallback",
             "lphoto",
             "Rph0",
             "viscous"
