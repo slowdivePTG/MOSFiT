@@ -420,7 +420,6 @@ class Ecc_Fallback(Engine):
         # bh mass for dmdt's in astrocrash is 1e6 solar masses
         # dmdt ~ Mh^(-1/2)
         self._Mh = kwargs['bhmass']  # in units of solar masses
-        Mh = self._Mh * M_SUN_CGS
 
         # Assume that BDs below 0.1 solar masses are n=1 polytropes
         if self._Mstar < 0.1:
@@ -437,7 +436,7 @@ class Ecc_Fallback(Engine):
                 (Rstar / Rstarbase) ** 1.5)
 
         # transform dmdt back to dmde profile, and shift it
-
+        Mh = self._Mh * M_SUN_CGS
         G = c.G.cgs.value  # 6.67259e-8 cm3 g-1 s-2
         dedt = (2.0 / 3.0) * ((np.pi * G * Mh)**2 / 2.0)**(1.0 / 3.0) * \
             time**(-5 / 3)
@@ -448,11 +447,14 @@ class Ecc_Fallback(Engine):
         A = (G * Mh / 4 / np.pi**2 * P**2)**(1 / 3)
         dE = -G * Mh / 2 / A
         ebound = ebound + dE
-        #print(ebound[0], dE, Mh / M_SUN_CGS, time[np.argmax(dmdt)] / DAY_CGS)
+
+        #print(len(time), time[::100] / DAY_CGS)
 
         dedt = (1.0 / 3.0) * (-2.0 * ebound) ** (5.0 / 2.0) / \
-            (2.0 * np.pi * G * self._Mh)
-        time = (-(np.pi * G * self._Mh)**2 / 2.0 / ebound ** 3) ** (1.0 / 2.0)
+            (2.0 * np.pi * G * Mh)
+        time = (-(np.pi * G * Mh)**2 / 2.0 / ebound ** 3) ** (1.0 / 2.0)
+
+        #print(len(time), time[::100] / DAY_CGS)
 
         time = time / DAY_CGS  # time is now in days to match self._times
         tfallback = np.copy(time[0])
